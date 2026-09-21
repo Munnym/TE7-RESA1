@@ -19,6 +19,12 @@ void echo_client(int sockfd) {
 		printf("Message: ");
 		n = 0;
 		while ((buff[n++] = getchar()) != '\n') {} // trailing '\n' will be sent
+		// Sending message size (ECHO)
+		int size_message = strlen(buff);
+		if (send(sockfd, &size_message, sizeof(int), 0) <= 0) {
+			break;
+		}
+		printf("Message length sent!\n");
 		// Sending message (ECHO)
 		if (send(sockfd, buff, strlen(buff), 0) <= 0) {
 			break;
@@ -34,13 +40,13 @@ void echo_client(int sockfd) {
 	}
 }
 
-int handle_connect() {
+int handle_connect(char * domain_name, char * port) {
 	struct addrinfo hints, *result, *rp;
 	int sfd;
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if (getaddrinfo(SERV_ADDR, SERV_PORT, &hints, &result) != 0) {
+	if (getaddrinfo(domain_name, port, &hints, &result) != 0) {
 		perror("getaddrinfo()");
 		exit(EXIT_FAILURE);
 	}
@@ -62,9 +68,14 @@ int handle_connect() {
 	return sfd;
 }
 
-int main() {
+int main(int argc, char * argv[]) {
+	if(argc != 3)
+	{
+		printf("Nécessite 3 arguments\n");
+		return EXIT_FAILURE;
+	}
 	int sfd;
-	sfd = handle_connect();
+	sfd = handle_connect(argv[1], argv[2]);
 	echo_client(sfd);
 	close(sfd);
 	return EXIT_SUCCESS;
