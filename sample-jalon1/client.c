@@ -6,41 +6,65 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <poll.h>
+#include <assert.h>
 
 #include "common.h"
 
 void echo_client(int sockfd) {
 	char buff[MSG_LEN];
 	int n;
+	struct pollfd fds[2];
+    fds[0].fd = 0;
+    fds[0].events = POLLIN;
+    fds[0].revents = 0;
+    
+    fds[1].fd = sockfd;
+    fds[1].events = POLLIN;
+    fds[1].revents = 0;
+	int size_message;
+	int ret_value = -1;
 	while (1) {
+		ret_value = poll(fds, 2, -1);
+		assert(ret_value != -1);
 		// Cleaning memory
 		memset(buff, 0, MSG_LEN);
-		// Getting message from client
-		printf("Message: ");
-		n = 0;
-		while ((buff[n++] = getchar()) != '\n') {} // trailing '\n' will be sent
-		// Sending message size (ECHO)
-		int size_message = strlen(buff);
-		if (send(sockfd, &size_message, sizeof(int), 0) <= 0) {
-			break;
+		if(fds[0].revents & POLLIN)
+        {
+			// Getting message from client
+			n = 0;
+			while ((buff[n++] = getchar()) != '\n') {} // trailing '\n' will be sent
+			// Sending message size (ECHO)
+			size_message = strlen(buff);
+			if (send(sockfd, &size_message, sizeof(int), 0) <= 0) {
+				break;
+			}
+			printf("Message length sent!\n");
+			// Sending message (ECHO)
+			if (send(sockfd, buff, strlen(buff), 0) <= 0) {
+				break;
+			}
+			printf("Message sent!\n");
+			if(strcmp(buff, "/quit"))
+			{
+				printf("deconnecting\n");
+				close(sockfd);
+			}
+        }
+		if (fds[1].revents & POLLIN)
+		{
+			if (recv(sockfd, &size_message, sizeof(int), 0) <= 0) {
+				break;
+			}
+			printf("Received: %d\n", size_message);
+			// Cleaning memory
+			memset(buff, 0, MSG_LEN);
+			// Receiving message
+			if (recv(sockfd, buff, size_message, 0) <= 0) {
+				break;
+			}
+			printf("Received: %s\n", buff);	
 		}
-		printf("Message length sent!\n");
-		// Sending message (ECHO)
-		if (send(sockfd, buff, strlen(buff), 0) <= 0) {
-			break;
-		}
-		printf("Message sent!\n");
-		if (recv(sockfd, &size_message, sizeof(int), 0) <= 0) {
-			break;
-		}
-		printf("Received: %d\n", size_message);
-		// Cleaning memory
-		memset(buff, 0, MSG_LEN);
-		// Receiving message
-		if (recv(sockfd, buff, size_message, 0) <= 0) {
-			break;
-		}
-		printf("Received: %s\n", buff);
 	}
 }
 
