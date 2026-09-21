@@ -45,7 +45,7 @@ void echo_client(int sockfd) {
 				break;
 			}
 			printf("Message sent!\n");
-			if(strcmp(buff, "/quit"))
+			if(strcmp(buff, "/quit") == 0)
 			{
 				printf("deconnecting\n");
 				close(sockfd);
