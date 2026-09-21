@@ -30,13 +30,17 @@ void echo_client(int sockfd) {
 			break;
 		}
 		printf("Message sent!\n");
+		if (recv(sockfd, &size_message, sizeof(int), 0) <= 0) {
+			break;
+		}
+		printf("Received: %d\n", size_message);
 		// Cleaning memory
 		memset(buff, 0, MSG_LEN);
 		// Receiving message
-		if (recv(sockfd, buff, MSG_LEN, 0) <= 0) {
+		if (recv(sockfd, buff, size_message, 0) <= 0) {
 			break;
 		}
-		printf("Received: %s", buff);
+		printf("Received: %s\n", buff);
 	}
 }
 
