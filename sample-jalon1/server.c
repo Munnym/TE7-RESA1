@@ -204,7 +204,7 @@ int receive_and_echo(int client_fd)
     char buffer[MSG_LEN + 1];
 
     // Cleaning memory
-    memset(buff, 0, MSG_LEN + 1);
+    memset(buffer, 0, MSG_LEN + 1);
 
     // Receiving message length
     if (read_on_socket(client_fd,&size,sizeof(size)) <= 0) 
