@@ -234,12 +234,12 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
     char buffer[MSG_LEN + 1];
     while(1)
     {
-        printf("attente des messages \n ");
+        printf("Wait messages \n ");
 
         int nb_active_fd=poll(fds,FDS_SIZE,-1);
         die(nb_active_fd,"Polling error");
 
-        printf("actif fd =%d \n",nb_active_fd);
+        printf("active fd =%d \n",nb_active_fd);
         for (int i=0;i<FDS_SIZE;i++)
         {
 			if (i == 0 && fds[0].revents & POLLIN)
@@ -251,7 +251,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
 					perror("accept()\n");
 					continue;
 				}
-                printf("client accepté \n");
+                printf("Accepted A \n");
 				insert_last(&sockets,*cli,connfd);
                 for (int j = 1; j < FDS_SIZE; j++) 
                 {
@@ -290,7 +290,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 if (boole)
                 {
                     buffer[size] = '\0';
-                    printf("Message reçu : %s\n", buffer);
+                    printf("Messsage receved : %s\n", buffer);
 
                     if (strcmp(buffer, "/quit") == 0) // deconnexion du client si /quit
                         boole = 0;
@@ -308,7 +308,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 }
                 if (!boole)
                 {
-                    printf("Client déconnecté (fd=%d)\n", fds[i].fd);
+                    printf("Deconnected (fd=%d)\n", fds[i].fd);
                     close(fds[i].fd);
                     remove_user(&sockets, fds[i].fd);
                     fds[i].fd = -1;
