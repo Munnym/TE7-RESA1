@@ -9,10 +9,9 @@
 #include <poll.h>
 
 #include "common.h"
+
 #define BACKLOG 10
 #define FDS_SIZE 10
-
-
 
 
 
@@ -111,22 +110,39 @@ void insert_first (struct user **pro,struct sockaddr_in data,int fd)
 }
 
 
-void insert_last(struct user **pro,struct sockaddr_in data,int fd) 
+void insert_last(struct user **pro, struct sockaddr_in data, int fd)
 {
-    struct user *newuser = create_user(data,fd);
-    if (*pro == NULL) 
+    struct user *newuser = create_user(data, fd);
+    if (*pro == NULL)
     {
         *pro = newuser;
         return;
     }
     struct user *user = *pro;
     while (user->next != NULL)
-    {
         user = user->next;
-        user->next = newuser;
-    }
+    user->next = newuser;
 }
 
+void remove_user(struct user **pro, int fd)
+{
+    struct user *cur = *pro;
+    struct user *prev = NULL;
+    while (cur != NULL)
+    {
+        if (cur->fd == fd)
+        {
+            if (prev == NULL)
+                *pro = cur->next;
+            else
+                prev->next = cur->next;
+            free(cur);
+            return;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+}
 
 
 
@@ -143,32 +159,7 @@ void free_list(struct user **pro)
 }
 
 
-void echo_server(int sockfd) 
-{
-    char buff[MSG_LEN];
-    while (1) {
-        // Cleaning memory
-        memset(buff, 0, MSG_LEN);
-        // Receiving message
-        if (recv(sockfd, buff, MSG_LEN, 0) <= 0) 
-        {
-            break;
-        }
-        if (strncmp(buff, "/quit", 5) == 0 ) 
-        {
-            printf("Le client a envoyé /quit\n");
-            break;
-        }
-        printf("Received: %s", buff);
-        // Sending message (ECHO)
-        if (send(sockfd, buff, strlen(buff), 0) <= 0) 
-        {
-            break;
-        }
-        
-        printf("Message sent!\n");
-    }
-}
+
 int handle_bind() {
     struct addrinfo hints, *result, *rp;
 	int sfd;
@@ -198,79 +189,15 @@ int handle_bind() {
 	freeaddrinfo(result);
 	return sfd;
 }
-int receive_and_echo(int client_fd)
+
+
+
+
+
+
+int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int port)
 {
-    int size;
-    char buffer[MSG_LEN + 1];
-
-    // Cleaning memory
-    memset(buffer, 0, MSG_LEN + 1);
-
-    // Receiving message length
-    if (read_on_socket(client_fd,&size,sizeof(size)) <= 0) 
-    {
-        return 0;
-    }
-
-    if (size <= 0 || size > MSG_LEN) {
-        fprintf(stderr, "Taille invalide : %d\n", size);
-        return 0;
-    }
-    // Receiving message
-    if (read_on_socket(client_fd,buffer,(size_t)size) <= 0) 
-    {
-        return 0;
-    }
-
-    buffer[size] = '\0';
-    printf("Message reçu : %s\n", buffer);
-    if (strcmp(buffer, "/quit") == 0) 
-    {
-        return 0;
-    }
-
-    // Sending message length
-    if (write_on_socket(client_fd,&size,sizeof(size)) <= 0) {
-
-        return 0;
-    }
-
-    // Sending message (ECHO)
-    if (write_on_socket(client_fd,buffer,(size_t)size) <= 0) 
-    {
-        return 0;
-    }
-
-    return -1;
-}
-
-
-
-int main(int argc, char* argv[]) 
-{
-
-	
-    if (argc != 2) 
-    {
-        fprintf(stderr, "Usage : %s <server_port>\n", argv[0]);
-        return EXIT_FAILURE;
-    }
-
-    struct sockaddr_in cli;
-	int connfd;
-	socklen_t len;
-
-
-	//int sfd;
-	//sfd = handle_bind();
-	//if ((listen(sfd, SOMAXCONN)) != 0) {
-		//perror("listen()\n");
-		//exit(EXIT_FAILURE);
-	//}
-
-	len = sizeof(cli);
-
-	//Création de la socket d'écoute
+    //Création de la socket d'écoute
     int listen_fd=socket(AF_INET,SOCK_STREAM,0);
     die(listen_fd,"Erreur de socket d'écoute");
 
@@ -280,7 +207,7 @@ int main(int argc, char* argv[])
     //Addressage de la socket
     struct sockaddr_in server_addr;
     server_addr.sin_family= AF_INET;
-    server_addr.sin_port=htons(atoi(argv[1]));
+    server_addr.sin_port=htons(port);
     inet_aton("127.0.0.1",&server_addr.sin_addr);
 
     //lier la socket d"ecoute a une addresse
@@ -305,7 +232,9 @@ int main(int argc, char* argv[])
         fds[i].events=0;
         fds[i].revents=0;
     }
-	while(1)
+    int size;
+    char buffer[MSG_LEN + 1];
+    while(1)
     {
         printf("attente des messages \n ");
 
@@ -320,12 +249,12 @@ int main(int argc, char* argv[])
 				//accepter la socket
                 fds[0].revents=0;
                 
-				if ((connfd = accept(listen_fd, (struct sockaddr*) &cli, &len)) < 0) {
+				if ((connfd = accept(fds[0].fd, (struct sockaddr*) cli, len)) < 0) {
 					perror("accept()\n");
-					exit(EXIT_FAILURE);
+					continue;
 				}
                 printf("client accepté \n");
-				insert_last(&sockets,cli,connfd);
+				insert_last(&sockets,*cli,connfd);
                 for (int j = 1; j < FDS_SIZE; j++) 
                 {
                     if (fds[j].fd == -1) 
@@ -339,14 +268,85 @@ int main(int argc, char* argv[])
             }
             else if ( fds[i].revents & POLLIN)
             {
-				receive_and_echo(fds[i].fd);
-               
+                // Cleaning memory
+                memset(buffer, 0, MSG_LEN + 1);
+                int boole = 1;
+                // Receiving message length
+                if (boole && read_on_socket(fds[i].fd,&size,sizeof(size)) <= 0) 
+                {
+                    boole = 0;
+                }
+                
+                if ( boole &&(size <= 0 || size > MSG_LEN) )
+                {
+                    fprintf(stderr, "Taille invalide : %d\n", size);
+                    boole = 0;
+                }
+                // Receiving message
+                if (boole &&read_on_socket(fds[i].fd,buffer,(size_t)size) <= 0) 
+                {
+                    boole = 0;
+                }
+
+                if (boole)
+                {
+                    buffer[size] = '\0';
+                    printf("Message reçu : %s\n", buffer);
+
+                    if (strcmp(buffer, "/quit") == 0)
+                        boole = 0;
+                }
+                // Sending message length
+                if (boole &&write_on_socket(fds[i].fd,&size,sizeof(size)) <= 0) {
+                    boole=0;
+                }
+
+                // Sending message (ECHO)
+                if (boole && write_on_socket(fds[i].fd,buffer,(size_t)size) <= 0) 
+                {
+                   boole = 0;
+                }
+                if (!boole)
+                {
+                    printf("Client déconnecté (fd=%d)\n", fds[i].fd);
+                    close(fds[i].fd);
+                    remove_user(&sockets, fds[i].fd);
+                    fds[i].fd = -1;
+                    fds[i].events = 0;
+                    fds[i].revents = 0;
+                }
             }
         }
     }
-	free_list(&sockets);
-	close(connfd);
+    free_list(&sockets);
 	close(listen_fd);
+    return 0;
+}
+
+
+
+int main(int argc, char* argv[]) 
+{
+
+	
+    if (argc != 2) 
+    {
+        fprintf(stderr, "Usage : %s <server_port>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    struct sockaddr_in cli;
+	int connfd=-1;
+	socklen_t len;
+	//int sfd;
+	//sfd = handle_bind();
+	//if ((listen(sfd, SOMAXCONN)) != 0) {
+		//perror("listen()\n");
+		//exit(EXIT_FAILURE);
+	//}
+	len = sizeof(cli);
+	receive_and_echo(connfd,&cli ,&len, atoi(argv[1]));
+	close(connfd);
 	//close(sfd);
 	return EXIT_SUCCESS;
 }
