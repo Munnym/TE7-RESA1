@@ -150,7 +150,8 @@ void remove_user(struct user **pro, int fd)
 void free_list(struct user **pro)
 {
     struct user *cur = *pro;
-    while (cur != NULL) {
+    while (cur != NULL) 
+    {
         struct user *next = cur->next;  /* sauvegarder AVANT free */
         free(cur);
         cur = next;
@@ -189,9 +190,6 @@ int handle_bind() {
 	freeaddrinfo(result);
 	return sfd;
 }
-
-
-
 
 
 
@@ -270,7 +268,8 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
             {
                 // Cleaning memory
                 memset(buffer, 0, MSG_LEN + 1);
-                int boole = 1;
+                int boole = 1; //boolean pour savoir si le client est encore connecté
+
                 // Receiving message length
                 if (boole && read_on_socket(fds[i].fd,&size,sizeof(size)) <= 0) 
                 {
@@ -293,11 +292,12 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     buffer[size] = '\0';
                     printf("Message reçu : %s\n", buffer);
 
-                    if (strcmp(buffer, "/quit") == 0)
+                    if (strcmp(buffer, "/quit") == 0) // deconnexion du client si /quit
                         boole = 0;
                 }
                 // Sending message length
-                if (boole &&write_on_socket(fds[i].fd,&size,sizeof(size)) <= 0) {
+                if (boole &&write_on_socket(fds[i].fd,&size,sizeof(size)) <= 0) 
+                {
                     boole=0;
                 }
 
@@ -328,7 +328,6 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
 int main(int argc, char* argv[]) 
 {
 
-	
     if (argc != 2) 
     {
         fprintf(stderr, "Usage : %s <server_port>\n", argv[0]);
