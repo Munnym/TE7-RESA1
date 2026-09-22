@@ -24,6 +24,7 @@ void echo_client(int sockfd) {
     fds[1].revents = 0;
 	int size_message;
 	int ret_value = -1;
+	printf("Please, enter your message :\n");
 	while (1) {
 		ret_value = poll(fds, 2, -1);
 		assert(ret_value != -1);
@@ -45,10 +46,11 @@ void echo_client(int sockfd) {
 				break;
 			}
 			printf("Message sent!\n");
-			if(strcmp(buff, "/quit") == 0)
+			if(strncmp(buff, "/quit",5) == 0)
 			{
-				printf("deconnecting\n");
+				printf("Deconnected !\n");
 				close(sockfd);
+				exit(EXIT_SUCCESS);
 			}
         }
 		if (fds[1].revents & POLLIN)
@@ -64,6 +66,7 @@ void echo_client(int sockfd) {
 				break;
 			}
 			printf("Received: %s\n", buff);	
+			printf("Please, enter your message :\n");
 		}
 	}
 }
