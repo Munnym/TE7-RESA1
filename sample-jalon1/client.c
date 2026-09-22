@@ -102,7 +102,7 @@ int handle_connect(char * domain_name, char * port) {
 int main(int argc, char * argv[]) {
 	if(argc != 3)
 	{
-		printf("Nécessite 3 arguments\n");
+		printf("Nécessite 2 arguments\n");
 		return EXIT_FAILURE;
 	}
 	int sfd;
