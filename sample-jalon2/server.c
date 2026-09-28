@@ -40,7 +40,7 @@ void echo_server(int sockfd) {
 }
 
 int handle_bind() {
-	struct addrinfo hints, *result, *rp;
+	struct addrinfo hints, *result,*rp;
 	int sfd;
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;
