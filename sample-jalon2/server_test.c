@@ -321,27 +321,54 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     printf("Payload length invalide : %d\n", msgstruct.pld_len);
                     boole = 0;
                 }
-                if (nick_is_taken(&sockets, msgstruct.infos, fds[i].fd) == 1)
+                switch(msgstruct.type)
                 {
-                    struct message resp = {0};
-                    strcpy(resp.nick_sender, "Server");
-                    resp.type = NICKNAME_NEW;
-                    char *txt = "Nickname already taken, please choose another one";
-                    resp.pld_len = strlen(txt) + 1;
-
-                    int boole = 1;
-
-                    // Envoi de la structure
-                    if (write_on_socket(fds[i].fd, &resp, sizeof(resp)) <= 0)
+                    case NICKNAME_NEW:
                     {
-                        boole = 0;
+                        if (nick_is_taken(&sockets, msgstruct.infos, fds[i].fd) == 1)
+                        {
+                            struct message resp = {0};
+                            strcpy(resp.nick_sender, "Server");
+                            resp.type = NICKNAME_NEW;
+                            char *txt = "Nickname already taken, please choose another one";
+                            resp.pld_len = strlen(txt) + 1;
+
+                            int boole = 1;
+
+                            // Envoi de la structure
+                            if (write_on_socket(fds[i].fd, &resp, sizeof(resp)) <= 0)
+                            {
+                                boole = 0;
+                            }
+                            // Envoi du payload (seulement si la structure est bien partie)
+                            if (boole && write_on_socket(fds[i].fd, txt, resp.pld_len) <= 0)
+                            {
+                                boole = 0;
+                            }
+                            continue;
+                        }
+                        break;
                     }
-                    // Envoi du payload (seulement si la structure est bien partie)
-                    if (boole && write_on_socket(fds[i].fd, txt, resp.pld_len) <= 0)
+                    case NICKNAME_LIST:
                     {
-                        boole = 0;
+                        break;
                     }
-                    continue;
+                    case NICKNAME_INFOS:
+                    {
+                        break;
+                    }
+                    case ECHO_SEND:
+                    {
+                        break;
+                    }
+                    case UNICAST_SEND:
+                    {
+                        break;
+                    }
+                    case BROADCAST_SEND:
+                    {
+                        break;
+                    }
                 }
                 // Receiving message
 		        if (boole && (read_on_socket(fds[i].fd, buffer, msgstruct.pld_len) <= 0))
