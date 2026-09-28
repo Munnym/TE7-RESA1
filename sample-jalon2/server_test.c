@@ -230,7 +230,21 @@ int nick_is_taken(struct user *pro,char *nick, int selfsocket)
     }
     return 0;
 }
+void add_pseudo_user(struct user **pro, char *pseudo, int fd)
+{
+    struct user *cur = *pro;
 
+    while (cur != NULL)
+    {
+        if (cur->fd == fd)
+        {
+            memcpy(cur->nick, pseudo, strlen(pseudo) + 1);
+            break;
+        }
+
+        cur = cur->next;
+    }
+}
 
 
 int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int port)
@@ -346,6 +360,11 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                                 boole = 0;
                             }
                             continue;
+                        }
+                        else
+                        {
+                            char *pseudo=msg_struct.infos;
+                            add_pseudo_user(&sockets,pseudo,fds[i].fd);
                         }
                         break;
                     }
