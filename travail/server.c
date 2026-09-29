@@ -39,6 +39,10 @@ void die(int ret_value,char* msg_err)
 
 int read_on_socket(int sockfd, void* ptr, int size)
 {
+    if (size <= 0)
+    {
+        return 1;
+    }
     int bits_lu=0;
     int a_lire= size;
     int ret_value=0;
@@ -62,6 +66,10 @@ int read_on_socket(int sockfd, void* ptr, int size)
 }
 int write_on_socket(int sockfd, void* ptr, int size) // permet d'ecrire le message dans son intégralité ou de renvoyer une erreur
 {
+    if (size <= 0)
+    {
+        return 1;
+    }
     int bits_ecris=0;
     int a_ecrire= size;
     int ret_value=0;
@@ -392,7 +400,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 }
 
                 // Receiving message
-                if (boole && (read_on_socket(fds[i].fd, buffer, msgstruct.pld_len) <= 0))
+                if (boole && msgstruct.pld_len > 0 && read_on_socket(fds[i].fd, buffer, msgstruct.pld_len) <= 0)
                 {
                     boole = 0;
                 }
@@ -441,28 +449,44 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 
                     case NICKNAME_LIST:
                     {
-                        int count = count_users(sockets);
-                        char *nicknames = malloc(count * NICK_LEN);
-                        if (nicknames == NULL)
+                        char list[MSG_LEN];
+                        int off = snprintf(list, sizeof list, "Online users are");
+
+                        for (struct user *c = sockets; c != NULL; c = c->next)
                         {
-                            send_message(fds[i].fd, "Server", NICKNAME_LIST,"","Server error: unable to allocate memory for nickname list");
-                            break;
+                            if (c->nick[0] == '\0')          // pas encore de pseudo 
+                                continue;
+                            if (off >= (int)sizeof list)     //plein
+                                break;
+                            off += snprintf(list + off, sizeof list - off, "\n- %s", c->nick);
                         }
-                         for (int j = 0; j < count; j++)
-                        {
-                            memcpy(nicknames + j * NICK_LEN, sockets[j].nick, NICK_LEN);
-                        }
-                        send_message(fds[i].fd, "Server", NICKNAME_LIST,"", nicknames);
-                        free(nicknames);
+
+                        if (send_message(fds[i].fd, "Server", NICKNAME_LIST, "", list) < 0)
+                            boole = 0;
                         break;
                     }
                     case NICKNAME_INFOS:
                     {
+                        struct user *t = find_by_nick(sockets, msgstruct.infos);
+                        char txt[MSG_LEN];
 
-                        struct user *user = find_by_nick(sockets, msgstruct.infos);
-                        char buffer[MSG_LEN];
-                        snprintf(buffer, sizeof(buffer), "User: %s, Connected since: %s  , IP adresse: %s, Port: %d", user->nick, ctime(&user->connect_time), inet_ntoa(user->client.sin_addr), ntohs(user->client.sin_port));
-                        send_message(fds[i].fd, "Server", NICKNAME_INFOS, msgstruct.infos, buffer);
+                        if (t == NULL)
+                        {
+                            snprintf(txt, sizeof txt, "User %s does not exist", msgstruct.infos);
+                        }
+                        else
+                        {
+                            char date[32];
+                            strftime(date, sizeof date, "%Y/%m/%d@%H:%M", localtime(&t->connect_time));
+                            snprintf(txt, sizeof txt,
+                                    "%s connected since %s with IP address %s and port number %d",
+                                    t->nick, date,
+                                    inet_ntoa(t->client.sin_addr),
+                                    ntohs(t->client.sin_port));
+                        }
+
+                        if (send_message(fds[i].fd, "Server", NICKNAME_INFOS, "", txt) < 0)
+                            boole = 0;
                         break;
                     }
                     case ECHO_SEND:
