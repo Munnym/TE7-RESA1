@@ -12,6 +12,28 @@
 #include "common.h"
 #include "msg_struct.h"
 
+int recv_safe(int fd, void *buf, int to_recv) {
+    int total_bites_recv = 0;
+    while (total_bites_recv < to_recv) {
+        int ret = recv(fd, (char *)buf + total_bites_recv, to_recv - total_bites_recv, 0);
+        if (ret <= 0) {
+			return -1;
+		}     
+        total_bites_recv += ret;
+    }
+    return total_bites_recv;
+}
+
+int send_safe(int fd, const void *buf, int to_send) {
+    int total_bites_send = 0;
+    while (total_bites_send < to_send) {
+        ssize_t s = send(fd, (const char *)buf + total_bites_send, to_send - total_bites_send, 0);
+        if (s <= 0) return -1;
+        total_bites_send += s;
+    }
+    return total_bites_send;
+}
+
 void echo_client(int sockfd) {
 	struct message msgstruct;
 	char buff[MSG_LEN];
@@ -134,13 +156,13 @@ void echo_client(int sockfd) {
 				msgstruct.type = ECHO_SEND;
 			}
 			// Sending structure
-			if (send(sockfd, &msgstruct, sizeof(msgstruct), 0) <= 0) {
+			if (send_safe(sockfd, &msgstruct, sizeof(msgstruct)) <= 0) {
 				break;
 			}
 			// Sending message (ECHO)
 			if(msgstruct.pld_len > 0  && msgstruct.pld_len < MSG_LEN + 1)
 			{
-				if (send(sockfd, playload, msgstruct.pld_len, 0) <= 0) {
+				if (send_safe(sockfd, playload, msgstruct.pld_len) <= 0) {
 					break;
 				}
 				printf("Message sent!\n");
@@ -155,7 +177,7 @@ void echo_client(int sockfd) {
 		if (fds[1].revents & POLLIN)
 		{
 			// Receiving structure
-			if (recv(sockfd, &msgstruct, sizeof(struct message), 0) <= 0) {
+			if (recv_safe(sockfd, &msgstruct, sizeof(struct message)) <= 0) {
 				break;
 			}
 			// Cleaning memory
@@ -165,12 +187,12 @@ void echo_client(int sockfd) {
 				if (msgstruct.pld_len >= MSG_LEN) {
 					break;
 				}
-				if (recv(sockfd, buff, msgstruct.pld_len, 0) <= 0) {
+				if (recv_safe(sockfd, buff, msgstruct.pld_len) <= 0) {
 					break;
 				}
 			}
 			printf("pld_len: %i / nick_sender: %s / type: %s / infos: %s\n", msgstruct.pld_len, msgstruct.nick_sender, msg_type_str[msgstruct.type], msgstruct.infos);
-			printf("Received: %s", buff);
+			printf("Received: %s\n", buff);
 		}
 	}
 }
