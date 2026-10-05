@@ -10,14 +10,16 @@
 #include <poll.h>
 #include <time.h>
 #include <ctype.h>
+#include <stddef.h>
 
 #include "common.h"
 #include "msg_struct.h"
 
+//==================================================================================================================================================================================================
+//=======================================================================STRUCTURES======================================================================================================================
+//==================================================================================================================================================================================================
 
-#define BACKLOG 10
-#define FDS_SIZE 10
-
+// Structure pour stocker les informations des utilisateurs connectés
 struct user
 {
     char nick[NICK_LEN];
@@ -25,9 +27,13 @@ struct user
     struct sockaddr_in client; 
     int fd;
     struct user *next;
-};    
+};   
+//==================================================================================================================================================================================================
+//=======================================================================FONCTIONS===========================================================================================================================
+//==================================================================================================================================================================================================
 
 
+// Fonction pour gérer les erreurs
 void die(int ret_value,char* msg_err)
 {
     if (ret_value < 0)
@@ -37,6 +43,8 @@ void die(int ret_value,char* msg_err)
     }
 }
 
+//=======================================================================FONCTION TEST ECRITURE/LECTURE===========================================================================================================================
+// Fonction limite sur la lecture des sockets
 int read_on_socket(int sockfd, void* ptr, int size)
 {
     int bits_lu=0;
@@ -60,6 +68,7 @@ int read_on_socket(int sockfd, void* ptr, int size)
     }
     return size;
 }
+// Fonction limite sur l ecriture des sockets
 int write_on_socket(int sockfd, void* ptr, int size) // permet d'ecrire le message dans son intégralité ou de renvoyer une erreur
 {
     int bits_ecris=0;
@@ -84,6 +93,9 @@ int write_on_socket(int sockfd, void* ptr, int size) // permet d'ecrire le messa
     }
     return size;
 }
+
+//======================================================================UTILISATEURS ET LISTE CHAINEE===========================================================================================================================
+// Fonction pour créer un nouvel utilisateur
 struct user* create_user(struct sockaddr_in data,int fd,char nick[NICK_LEN],time_t time) 
 {
     struct user *newuser = malloc(sizeof(struct user));
@@ -102,6 +114,7 @@ struct user* create_user(struct sockaddr_in data,int fd,char nick[NICK_LEN],time
     return newuser;
 }
 
+// Fonction pour insérer un utilisateur au début de la liste
 void insert_first (struct user **pro,struct sockaddr_in data,int fd,char nick[NICK_LEN],time_t time)
 {
     struct user *newuser = create_user(data,fd,nick,time);
@@ -109,7 +122,7 @@ void insert_first (struct user **pro,struct sockaddr_in data,int fd,char nick[NI
     *pro = newuser;
 }
 
-
+//  Fonction pour insérer un utilisateur à la fin de la liste
 void insert_last(struct user **pro, struct sockaddr_in data, int fd,char nick[NICK_LEN],time_t time)
 {
     struct user *newuser = create_user(data, fd,nick,time);
@@ -124,6 +137,7 @@ void insert_last(struct user **pro, struct sockaddr_in data, int fd,char nick[NI
     user->next = newuser;
 }
 
+// Fonction pour supprimer un utilisateur de la liste
 void remove_user(struct user **pro, int fd)
 {
     struct user *cur = *pro;
@@ -144,6 +158,8 @@ void remove_user(struct user **pro, int fd)
     }
 }
 
+
+// Fonction pour compter le nombre d'utilisateurs dans la liste
 int count_users(struct user *pro)
 {
     int count = 0;
@@ -156,7 +172,7 @@ int count_users(struct user *pro)
 }
 
 
-
+//  Fonction pour libérer la liste chainée
 void free_list(struct user **pro)
 {
     struct user *cur = *pro;
@@ -168,39 +184,9 @@ void free_list(struct user **pro)
     }
     *pro = NULL;
 }
+//=====================================================================FONCTIONS SOCKETS=============================================================================================================================
 
-
-
-int handle_bind() {
-    struct addrinfo hints, *result, *rp;
-	int sfd;
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-	if (getaddrinfo(NULL, SERV_PORT, &hints, &result) != 0) {
-		perror("getaddrinfo()");
-		exit(EXIT_FAILURE);
-	}
-	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		sfd = socket(rp->ai_family, rp->ai_socktype,
-		rp->ai_protocol);
-		if (sfd == -1) {
-			continue;
-		}
-		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
-			break;
-		}
-		close(sfd);
-	}
-	if (rp == NULL) {
-		fprintf(stderr, "Could not bind\n");
-		exit(EXIT_FAILURE);
-	}
-	freeaddrinfo(result);
-	return sfd;
-}
-
+// Fonction pour tester si un pseudo est valide
 int test_nickname(char nick[NICK_LEN])
 {
     int length=strlen(nick);
@@ -218,6 +204,9 @@ int test_nickname(char nick[NICK_LEN])
     }
     return 0;
 }
+
+
+// Fonction pour vérifier si un pseudo est déjà pris par un autre utilisateur
 int nick_is_taken(struct user *pro,char *nick, int selfsocket)
 {
     int test_name = test_nickname(nick);
@@ -242,6 +231,8 @@ int nick_is_taken(struct user *pro,char *nick, int selfsocket)
     }
     return 0;
 }
+
+//Fonction pour ajouter un pseudo à un utilisateur existant
 void add_pseudo_user(struct user **pro, char *pseudo, int fd)
 {
     struct user *cur = *pro;
@@ -257,6 +248,8 @@ void add_pseudo_user(struct user **pro, char *pseudo, int fd)
         cur = cur->next;
     }
 }
+
+// Fonction pour trouver un utilisateur par son descripteur de socket
 struct user *find_by_fd(struct user *pro, int fd)
 {
     for (; pro; pro = pro->next)
@@ -269,6 +262,8 @@ struct user *find_by_fd(struct user *pro, int fd)
     }
     return NULL;
 }
+
+// Fonction pour trouver un utilisateur par son pseudo
 struct user *find_by_nick(struct user *pro,char *nick)
 {
     for (; pro; pro = pro->next)
@@ -281,7 +276,8 @@ struct user *find_by_nick(struct user *pro,char *nick)
     return NULL;
 }
 
-int send_message(int fd, const char *sender, enum msg_type type,char *infos,char *txt)
+// Fonction pour envoyer un message à un utilisateur
+int send_message(int fd, char *sender, enum msg_type type,char *infos,char *txt)
 {
     struct message resp;
     memset(&resp, 0, sizeof resp);
@@ -302,6 +298,8 @@ int send_message(int fd, const char *sender, enum msg_type type,char *infos,char
     return 0;
 }
 
+//====================================================================FONCTION SERVEUR===========================================================================================================================
+//Fonction connexion principale du serveur
 int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int port)
 {
     //Création de la socket d'écoute
@@ -340,7 +338,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
         fds[i].revents=0;
     }
     struct message msgstruct;
-    char buffer[MSG_LEN + 1];
+    char playload[MSG_LEN + 1];
     while(1)
     {
         printf("Wait messages \n ");
@@ -377,7 +375,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
             {
                 // Cleaning memory
                 memset(&msgstruct, 0, sizeof(struct message));
-                memset(buffer, 0, MSG_LEN + 1);
+                memset(playload, 0, MSG_LEN + 1);
                 int boole = 1; //boolean pour savoir si le client est encore connecté
 
                 // Receiving structure
@@ -392,7 +390,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 }
 
                 // Receiving message
-                if (boole && (read_on_socket(fds[i].fd, buffer, msgstruct.pld_len) <= 0))
+                if (boole && (read_on_socket(fds[i].fd, playload, msgstruct.pld_len) <= 0))
                 {
                     boole = 0;
                 }
@@ -440,7 +438,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     }
                 
                     case NICKNAME_LIST:
-                    {
+                    { 
                         int count = count_users(sockets);
                         char *nicknames = malloc(count * NICK_LEN);
                         if (nicknames == NULL)
@@ -460,23 +458,28 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     {
 
                         struct user *user = find_by_nick(sockets, msgstruct.infos);
-                        char buffer[MSG_LEN];
-                        snprintf(buffer, sizeof(buffer), "User: %s, Connected since: %s  , IP adresse: %s, Port: %d", user->nick, ctime(&user->connect_time), inet_ntoa(user->client.sin_addr), ntohs(user->client.sin_port));
-                        send_message(fds[i].fd, "Server", NICKNAME_INFOS, msgstruct.infos, buffer);
+                        if (user == NULL)
+                        {
+                            send_message(fds[i].fd, "Server", NICKNAME_INFOS,"","Server error: user not found");
+                            break;
+                        }
+                        char playload[MSG_LEN];
+                        snprintf(playload, sizeof(playload), "User: %s, Connected since: %s  , IP adresse: %s, Port: %d", user->nick, ctime(&user->connect_time), inet_ntoa(user->client.sin_addr), ntohs(user->client.sin_port));
+                        send_message(fds[i].fd, "Server", NICKNAME_INFOS, msgstruct.infos, playload);
                         break;
                     }
                     case ECHO_SEND:
                     {
-                        buffer[msgstruct.pld_len] = '\0';
-                        printf("Messsage receved : %s\n", buffer);
+                        playload[msgstruct.pld_len] = '\0';
+                        printf("Messsage receved : %s\n", playload);
                         printf("pld_len: %i / nick_sender: %s / type: %s / infos: %s\n", msgstruct.pld_len, msgstruct.nick_sender, msg_type_str[msgstruct.type], msgstruct.infos);
 
-                        if (0 == strcmp(buffer, "/quit")) // deconnexion du client si /quit
+                        if (0 == strcmp(playload, "/quit")) // deconnexion du client si /quit
                         {
                             boole = 0;
                             break;
                         }
-                        if (send_message(fds[i].fd, msgstruct.nick_sender, ECHO_SEND, msgstruct.infos, buffer) < 0)
+                        if (send_message(fds[i].fd, msgstruct.nick_sender, ECHO_SEND, msgstruct.infos, playload) < 0)
                         {
                             boole = 0;
                         }
@@ -491,7 +494,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                             send_message(fds[i].fd, "Server", UNICAST_SEND,"","Server error: user not found");
                             break;
                         }
-                        if (send_message(destination->fd, msgstruct.nick_sender, UNICAST_SEND, msgstruct.infos, buffer) < 0)
+                        if (send_message(destination->fd, msgstruct.nick_sender, UNICAST_SEND, msgstruct.infos, playload) < 0)
                         {
                             send_message(fds[i].fd, "Server", UNICAST_SEND,"","Server error: unable to send unicast message");
                         }
@@ -505,7 +508,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                         {
                             if (cur->fd != socket_expediteur && cur->nick[0] != '\0')
                             {
-                                if (send_message(cur->fd, expediteur->nick, BROADCAST_SEND, msgstruct.infos, buffer) < 0)
+                                if (send_message(cur->fd, expediteur->nick, BROADCAST_SEND, msgstruct.infos, playload) < 0)
                                 {
                                     send_message(cur->fd, "Server", BROADCAST_SEND,"","Server error: unable to send broadcast message");
                                 }
@@ -513,6 +516,49 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                         }
                         break;
                     }
+                    case FILE_REQUEST:
+                    {
+                        struct user *destination = find_by_nick(sockets, msgstruct.infos);
+                        if (destination == NULL)
+                        {
+                            send_message(fds[i].fd, "Server", UNICAST_SEND,"","Server error: user not found");
+                            break;
+                        }
+                        send_message(destination->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos,playload);
+                        break;
+                    }
+                    case FILE_ACCEPT:
+                    {
+                        struct user *emission = find_by_nick(sockets, msgstruct.infos);
+                        if (emission == NULL)
+                        {
+                            send_message(fds[i].fd, "Server", UNICAST_SEND,"","Server error: user not found");
+                            break;
+                        }
+                        send_message(emission->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos,playload);
+                        break;
+
+                    }
+                    case FILE_REJECT:
+                    {
+                        struct user *emission = find_by_nick(sockets, msgstruct.infos);
+                        if (emission == NULL)
+                        {
+                            send_message(fds[i].fd, "Server", UNICAST_SEND,"","Server error: user not found");
+                            break;
+                        }
+                        send_message(emission->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos,"Client rejected the file transfer request");
+                        break;
+                    }
+                    case FILE_SEND:
+                    {
+                        break;
+                    }
+                    case FILE_ACK:
+                    {
+                        break;
+                    }
+
                     default:
                     {
                         printf("Message type %d not implemented\n", msgstruct.type);
@@ -538,7 +584,9 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
     return 0;
 }
 
-
+//==================================================================================================================================================================================================
+//========================================================================MAIN==========================================================================================================================
+//==================================================================================================================================================================================================
 
 int main(int argc, char* argv[]) 
 {
@@ -551,15 +599,8 @@ int main(int argc, char* argv[])
     struct sockaddr_in cli;
 	int connfd=-1;
 	socklen_t len;
-	//int sfd;
-	//sfd = handle_bind();
-	//if ((listen(sfd, SOMAXCONN)) != 0) {
-		//perror("listen()\n");
-		//exit(EXIT_FAILURE);
-	//}
 	len = sizeof(cli);
 	receive_and_echo(connfd,&cli ,&len, atoi(argv[1]));
-	//close(sfd);
 	return EXIT_SUCCESS;
 }
 
