@@ -102,7 +102,7 @@ int write_on_socket(int sockfd, void* ptr, int size) // permet d'ecrire le messa
     return size;
 }
 
-//======================================================================UTILISATEURS ET LISTE CHAINEE===========================================================================================================================
+//========================================================FONCTIONS UTILISATEURS ET LISTE CHAINEE===========================================================================================================================
 // Fonction pour créer un nouvel utilisateur
 struct user* create_user(struct sockaddr_in data,int fd,char nick[NICK_LEN],time_t time) 
 {
@@ -494,9 +494,80 @@ int File_reject(int fd, struct user **sockets, struct message msgstruct, char *p
 }
 
 
+int switch_message_type(int fd,struct message msgstruct, char *playload, struct user *sockets)
+{
+    int boole = 1;
+    switch(msgstruct.type)
+    {
+        case NICKNAME_NEW:
+        {
+            return Nickname_new(fd, &sockets, msgstruct);
+        }
+        case NICKNAME_LIST:
+        {
+            boole = Nickname_list(fd, &sockets);
+            if (boole < 0)
+            {
+                send_message(fd, "Server", NICKNAME_LIST,"","Server error: unable to send nickname list");
+                return 0;
+            }
+            return boole;
+        }
+        case NICKNAME_INFOS:
+        {
+            return Nickname_infos(fd, &sockets, msgstruct);
+        }
+        case ECHO_SEND:
+        {
+            return Echo_send(fd, msgstruct, playload);
+        }
+        case UNICAST_SEND:
+        {
+            return Unicast_send(fd, &sockets, msgstruct, playload);
+        }
+        case BROADCAST_SEND:
+        {
+            return Broadcast_send(fd, &sockets, msgstruct, playload);
+        }
+        case FILE_REQUEST:
+        {
+            return File_request(fd, &sockets, msgstruct, playload);
+        }
+        case FILE_ACCEPT:
+        {
+            return File_accept(fd, &sockets, msgstruct, playload);
+        }
+        case FILE_REJECT:
+        {
+            return File_reject(fd, &sockets, msgstruct, playload);
+        }
+        case FILE_SEND:
+        {   
+            printf("Message type %d pear to pear server isn't include\n", msgstruct.type);
+            send_message(fd, "Server", msgstruct.type,"","Server error: Connection between clients without server");
+            return 0;
+        }
+        case FILE_ACK:
+        {
+            printf("Message type %d pear to pear server isn't include\n", msgstruct.type);
+            send_message(fd, "Server", msgstruct.type,"","Server error: Connection between clients without server");
+            return 0;
+        }
+
+        default:
+        {
+            printf("Message type %d not implemented\n", msgstruct.type);
+            send_message(fd, "Server", msgstruct.type,"","Server error: message type not implemented");
+            return 0;
+        }
+    }
+}
+
+//b
 //====================================================================FONCTION SERVEUR===========================================================================================================================
-//Fonction connexion principale du serveur
-int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int port)
+
+
+int handle_bind(int port)
 {
     //Création de la socket d'écoute
     int listen_fd=socket(AF_INET,SOCK_STREAM,0);
@@ -520,6 +591,15 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
     int listen_value;
     listen_value=listen(listen_fd,BACKLOG);
     die(listen_value,"Erreur lors de l'écoute");
+    return listen_fd;
+}
+
+
+//Fonction connexion principale du serveur
+int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int port)
+{
+    //Création de la socket d'écoute
+    int listen_fd = handle_bind(port);
 
 	struct user *sockets=NULL;
 
@@ -554,7 +634,7 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
 					perror("accept()\n");
 					continue;
 				}
-                printf("Accepted A \n");
+                printf("Accepted  \n");
 				insert_last(&sockets,*cli,connfd,NULL,time(NULL));
                 for (int j = 1; j < FDS_SIZE; j++) 
                 {
@@ -587,79 +667,10 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
 
                 // Receiving message
                 if (boole && msgstruct.pld_len > 0 && read_on_socket(fds[i].fd, playload, msgstruct.pld_len) <= 0)
-
                 {
                     boole = 0;
                 }
-                switch(msgstruct.type)
-                {
-                    case NICKNAME_NEW:
-                    {
-                        boole = Nickname_new(fds[i].fd, &sockets, msgstruct);
-                        break;
-                    }
-                    case NICKNAME_LIST:
-                    {
-                        boole = Nickname_list(fds[i].fd, &sockets);
-                        if (boole < 0)
-                        {
-                            send_message(fds[i].fd, "Server", NICKNAME_LIST,"","Server error: unable to send nickname list");
-                            boole = 0;
-                        }
-                        break;
-                    }
-                    case NICKNAME_INFOS:
-                    {
-                        boole = Nickname_infos(fds[i].fd, &sockets, msgstruct);
-                        break;
-                    }
-                    case ECHO_SEND:
-                    {
-                        boole = Echo_send(fds[i].fd, msgstruct, playload);
-                        break;
-                    }
-                    case UNICAST_SEND:
-                    {
-                        boole = Unicast_send(fds[i].fd, &sockets, msgstruct, playload);
-                        break;
-                    }
-                    case BROADCAST_SEND:
-                    {
-                        boole = Broadcast_send(fds[i].fd, &sockets, msgstruct, playload);
-                        break;
-                    }
-                    case FILE_REQUEST:
-                    {
-                        boole = File_request(fds[i].fd, &sockets, msgstruct, playload);
-                        break;
-                    }
-                    case FILE_ACCEPT:
-                    {
-                        boole = File_accept(fds[i].fd, &sockets, msgstruct, playload);
-                        break;
-
-                    }
-                    case FILE_REJECT:
-                    {
-                        boole = File_reject(fds[i].fd, &sockets, msgstruct, playload);
-                        break;
-                    }
-                    case FILE_SEND:
-                    {
-                        break;
-                    }
-                    case FILE_ACK:
-                    {
-                        break;
-                    }
-
-                    default:
-                    {
-                        printf("Message type %d not implemented\n", msgstruct.type);
-                        send_message(fds[i].fd, "Server", msgstruct.type,"","Server error: message type not implemented");
-                        break;
-                    }
-                }
+                boole=switch_message_type(fds[i].fd, msgstruct, playload, sockets);
                 if (!boole)
                 {
                     printf("Deconnected (fd=%d)\n", fds[i].fd);
@@ -684,15 +695,25 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
 
 int main(int argc, char* argv[]) 
 {
-    if (argc != 2) 
+    int port;
+    if (argc > 2) 
     {
         fprintf(stderr, "Usage : %s <server_port>\n", argv[0]);
         return EXIT_FAILURE;
     }
+    else if (argc == 1) 
+    {
+        port = 12345; // Default port
+    }
+    else 
+    {
+        port = atoi(argv[1]);
+    }
+    printf("Server is running on port %d\n", port);
     struct sockaddr_in cli;
 	int connfd=-1;
 	socklen_t len;
 	len = sizeof(cli);
-	receive_and_echo(connfd,&cli ,&len, atoi(argv[1]));
+	receive_and_echo(connfd,&cli ,&len, port);
 	return EXIT_SUCCESS;
 }
