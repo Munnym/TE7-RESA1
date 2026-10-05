@@ -398,11 +398,8 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                 }
 
                 // Receiving message
-<<<<<<< HEAD
-                if (boole && (read_on_socket(fds[i].fd, playload, msgstruct.pld_len) <= 0))
-=======
-                if (boole && msgstruct.pld_len > 0 && read_on_socket(fds[i].fd, buffer, msgstruct.pld_len) <= 0)
->>>>>>> c98ae0ba19cf3dc0bcf5738374b94944ec13138b
+                if (boole && msgstruct.pld_len > 0 && read_on_socket(fds[i].fd, playload, msgstruct.pld_len) <= 0)
+
                 {
                     boole = 0;
                 }
@@ -450,24 +447,18 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     }
                 
                     case NICKNAME_LIST:
-<<<<<<< HEAD
-                    { 
-                        int count = count_users(sockets);
-                        char *nicknames = malloc(count * NICK_LEN);
-                        if (nicknames == NULL)
-=======
+
                     {
                         char list[MSG_LEN];
                         int off = snprintf(list, sizeof list, "Online users are");
 
-                        for (struct user *c = sockets; c != NULL; c = c->next)
->>>>>>> c98ae0ba19cf3dc0bcf5738374b94944ec13138b
+                        for (struct user *cur = sockets; cur != NULL; cur = cur->next)
                         {
-                            if (c->nick[0] == '\0')          // pas encore de pseudo 
+                            if (cur->nick[0] == '\0')          // pas encore de pseudo 
                                 continue;
                             if (off >= (int)sizeof list)     //plein
                                 break;
-                            off += snprintf(list + off, sizeof list - off, "\n- %s", c->nick);
+                            off += snprintf(list + off, sizeof list-off, "\n- %s", cur->nick);
                         }
 
                         if (send_message(fds[i].fd, "Server", NICKNAME_LIST, "", list) < 0)
@@ -476,21 +467,17 @@ int receive_and_echo(int connfd,struct sockaddr_in *cli ,socklen_t *len, int por
                     }
                     case NICKNAME_INFOS:
                     {
-                        struct user *t = find_by_nick(sockets, msgstruct.infos);
+                        struct user *user = find_by_nick(sockets, msgstruct.infos);
                         char txt[MSG_LEN];
-                        if (t == NULL)
+                        if (user == NULL)
                         {
                             snprintf(txt, sizeof txt, "User %s does not exist", msgstruct.infos);
                         }
                         else
                         {
                             char date[32];
-                            strftime(date, sizeof date, "%Y/%m/%d@%H:%M", localtime(&t->connect_time));
-                            snprintf(txt, sizeof txt,
-                                    "%s connected since %s with IP address %s and port number %d",
-                                    t->nick, date,
-                                    inet_ntoa(t->client.sin_addr),
-                                    ntohs(t->client.sin_port));
+                            strftime(date, sizeof date, "%Y/%m/%d@%H:%M", localtime(&user->connect_time));
+                            snprintf(txt, sizeof txt,"%s connected since %s with IP address %s and port number %d",user->nick, date,inet_ntoa(user->client.sin_addr),ntohs(user->client.sin_port));
                         }
 
                         if (send_message(fds[i].fd, "Server", NICKNAME_INFOS, "", txt) < 0)
