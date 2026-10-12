@@ -14,6 +14,7 @@
 #include "common.h"
 #include "msg_struct.h"
 
+// fonction pour gérer les erreurs
 void die(int ret_value, const char *msg)
 {
     if (ret_value < 0)
