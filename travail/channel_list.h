@@ -49,7 +49,9 @@ void insert_last(struct user **pro, struct sockaddr_in data, int fd,char nick[NI
     }
     struct user *user = *pro;
     while (user->next != NULL)
+    {
         user = user->next;
+    }
     user->next = newuser;
 }
 

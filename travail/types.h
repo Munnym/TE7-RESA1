@@ -166,7 +166,7 @@ int File_accept(int fd, struct user **sockets, struct message msgstruct, char *p
     struct user *emission = find_by_nick(*sockets, msgstruct.infos);
     if (me == NULL || emission == NULL)
     {
-        send_message(fd, "Server", UNICAST_SEND,"","Server error: user not found");
+        send_message(fd, "Server", ECHO_SEND,"","Server error: user not found");
         return 0;
     }
     send_message(emission->fd,me->nick,FILE_ACCEPT, me->nick,playload);
@@ -180,10 +180,10 @@ int File_reject(int fd, struct user **sockets, struct message msgstruct, char *p
     struct user *emission = find_by_nick(*sockets, msgstruct.infos);
     if (me == NULL || emission == NULL)
     {
-        send_message(fd, "Server", UNICAST_SEND,"","Server error: user not found");
+        send_message(fd, "Server", ECHO_SEND,"","Server error: user not found");
         return 0;
     }
-    send_message(emission->fd, me->nick, msgstruct.type, me->nick,"");
+    send_message(emission->fd, me->nick,FILE_REJECT, me->nick,"");
     return 1;
 }
 
