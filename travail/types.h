@@ -149,46 +149,41 @@ int Broadcast_send(int fd, struct user **sockets, struct message msgstruct, char
 
 int File_request(int fd, struct user **sockets, struct message msgstruct, char *playload)
 {
+    struct user *me = find_by_fd(*sockets, fd);
     struct user *destination = find_by_nick(*sockets, msgstruct.infos);
-    if (destination == NULL)
+    if (me == NULL || destination == NULL)
     {
-        send_message(fd, "Server", UNICAST_SEND,"","Server error: user not found");
+        send_message(fd, "Server", ECHO_SEND,"","Server error: user not found");
         return 0;
     }
-    char txt[MSG_LEN];
-    snprintf(txt, sizeof txt, "User %s wants to send you a file", msgstruct.nick_sender);
-    send_message(destination->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos, txt);
-    send_message(destination->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos,playload);
+    send_message(destination->fd, me->nick, FILE_REQUEST, me->nick,playload);
     return 1;
 }
 
 int File_accept(int fd, struct user **sockets, struct message msgstruct, char *playload)
 {
+    struct user *me = find_by_fd(*sockets, fd);
     struct user *emission = find_by_nick(*sockets, msgstruct.infos);
-    if (emission == NULL)
+    if (me == NULL || emission == NULL)
     {
         send_message(fd, "Server", UNICAST_SEND,"","Server error: user not found");
         return 0;
     }
-    char txt[MSG_LEN];
-    snprintf(txt, sizeof txt, "User %s accepted the file transfer request", msgstruct.nick_sender);
-    send_message(emission->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos, txt);
-    send_message(emission->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos,playload);
+    send_message(emission->fd,me->nick,FILE_ACCEPT, me->nick,playload);
     return 1;
 }
 
 
 int File_reject(int fd, struct user **sockets, struct message msgstruct, char *playload)
 {
+    struct user *me = find_by_fd(*sockets, fd);
     struct user *emission = find_by_nick(*sockets, msgstruct.infos);
-    if (emission == NULL)
+    if (me == NULL || emission == NULL)
     {
         send_message(fd, "Server", UNICAST_SEND,"","Server error: user not found");
         return 0;
     }
-    char txt[MSG_LEN];
-    snprintf(txt, sizeof txt, "User %s rejected the file transfer request", msgstruct.nick_sender);
-    send_message(emission->fd, msgstruct.nick_sender, msgstruct.type, msgstruct.infos, txt);
+    send_message(emission->fd, me->nick, msgstruct.type, me->nick,"");
     return 1;
 }
 
