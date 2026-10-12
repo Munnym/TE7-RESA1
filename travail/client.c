@@ -130,6 +130,7 @@ int handle_bind(int *port_out){
 	return listener_fd;
 }
 
+
 void echo_client(int sockfd) {
 	struct message msgstruct;
 	char buff[MSG_LEN];
