@@ -505,6 +505,8 @@ void echo_client(int sockfd) {
 			snprintf(file_rcv_path, sizeof(file_rcv_path), ".resa1/inbox/%s", file_rcv_name);
 			int file_fd = open(file_rcv_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 			die(file_fd,"File's creation");
+
+			int expected = 0;
 			// Receiving structure
 			while(recv_safe(sockfd_peer, &msgstruct, sizeof(struct message)) > 0)
 			{
@@ -521,12 +523,17 @@ void echo_client(int sockfd) {
 					}
 					if (msgstruct.type == FILE_SEND)
 					{
+						expected = msgstruct.pld_len;
 						nb_bytes_read = write_safe(file_fd, file_rcv_buff, msgstruct.pld_len);
+						if (nb_bytes_read != expected)
+						{
+							break;
+						}
 					}
 				}
 			}
 			close(file_fd);
-			if(nb_bytes_read != msgstruct.pld_len)
+			if(nb_bytes_read != expected)
 			{
 				close(sockfd_peer);
 				continue;
